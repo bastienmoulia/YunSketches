@@ -105,6 +105,22 @@ int readPartitionSize() {
   return partitionSize;
 }
 
+int readSWAPSize() {
+  int SWAPSize = 0;
+  while (!SWAPSize)
+  {
+    Serial.print(F("Enter the size of the SWAP in MB: "));
+    while (Serial.available() == 0);
+
+    String answer = Serial.readStringUntil('\n');
+    SWAPSize = answer.toInt();
+    Serial.println(SWAPSize);
+    if (!SWAPSize)
+      Serial.println(F("Invalid input, retry"));
+  }
+  return SWAPSize;
+}
+
 void debugProcess(Process p) {
   #if DEBUG == 1
   while (p.running());
@@ -200,11 +216,28 @@ void partitionAndFormatSDCard() {
   debugProcess(format);
 
   unmount();
-
+  
+  // create the SWAP
+  int dataSWAPSize = readSWAPSize();
+  
+  Serial.println(F("Partitioning (this will take a while)..."));
+  String SWAPPartition = "(echo n; echo p; echo 3; echo; echo +";
+  SWAPPartition += dataSWAPSize;
+  SWAPPartition += "M; echo t; echo 3; echo 82; echo w) | fdisk /dev/sda";
+  format.runShellCommand(SWAPPartition);
+  debugProcess(format);
+  
+  unmount();
+  
   // create the second partition
   format.runShellCommand(F("(echo n; echo p; echo 2; echo; echo; echo w) | fdisk /dev/sda"));
   debugProcess(format);
 
+  //format.runShellCommand(F("mkswap /dev/sda3"));
+  //format.runShellCommand(F("swapon /dev/sda3"));
+  //format.runShellCommand(F("vi /etc/fstab3"));
+  //format.runShellCommand(F("/dev/sda3 swap swap defaults 0 0"));
+  
   unmount();
 
   // specify first partition is FAT32
